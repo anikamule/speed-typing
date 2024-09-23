@@ -1,0 +1,254 @@
+---
+title: "Stats_Project"
+author: "Grace Huang"
+date: "2024-04-01"
+output: html_document
+---
+
+Add the Libraries
+```{r}
+library(pastecs)
+library(car)
+library(QuantPsyc)
+library(ggplot2)
+library(psych)
+library(stats)
+```
+
+
+Import CSV file
+```{r}
+
+# Read WPM data
+WPM <- read.csv('Raw_WPM.csv', sep = ',', header = TRUE)
+
+# Read Accuracy data
+Accuracy <- read.csv('Raw_Accuracy.csv', sep = ',', header = TRUE)
+
+```
+
+
+# 1. Summary of data
+
+```{r}
+# Summary of WPM data
+summary(WPM)
+
+# Summary of Accuracy data
+summary(Accuracy)
+
+```
+
+# 2. Create Boxplots
+
+```{r}
+
+# Create boxplots for WPM
+boxplot(WPM[, c("Silence", "Classical", "Pop")], 
+        main = "Words Per Minute by Genre",
+        ylab = "Words Per Minute",
+        col = c("blue", "green", "red"),
+        names = c("Silence", "Classical", "Pop"))
+
+# Create boxplots for Accuracy
+boxplot(Accuracy[, c("Silence", "Classical", "Pop")], 
+        main = "Accuracy by Genre",
+        ylab = "Accuracy",
+        col = c("blue", "green", "red"),
+        names = c("Silence", "Classical", "Pop"))
+
+
+# There is a potential outlier in pop with a very low value but after outlier analysis we see that it's not
+```
+
+
+# 3. Pairwise T-test
+
+```{r}
+##########
+# WPM
+##########
+
+# Compare Silence to Classical
+t.test(WPM$Silence, WPM$Classical, paired = TRUE)
+
+# Compare Classical to Pop
+t.test(WPM$Classical, WPM$Pop, paired = TRUE)
+
+# Compare Silence to Pop
+t.test(WPM$Silence, WPM$Pop, paired = TRUE)
+
+```
+
+```{r}
+
+##############
+# ACCURACY
+##############
+
+# Compare Silence to Classical
+t.test(Accuracy$Silence, Accuracy$Classical, paired = TRUE)
+
+# Compare Classical to Pop
+t.test(Accuracy$Classical, Accuracy$Pop, paired = TRUE)
+
+# Compare Silence to Pop
+t.test(Accuracy$Silence, Accuracy$Pop, paired = TRUE)
+
+
+```
+
+
+
+
+# 4. One-Factor ANOVA
+Anova checks for sphericity
+sphereicity is that the paired different samples all have the same variance
+```{r}
+
+WPM2 <- read.csv('WPM_2.csv', sep = ',', header = TRUE)
+
+res.aov_WPM <- aov(WPM ~ Condition+User, data = WPM2)
+
+summary(res.aov_WPM)
+
+```
+
+
+# 5. Scatterplot checks for outliers and independence
+
+```{r}
+
+WPM_Silence <- read.csv('WPM_Silence.csv', sep = ',', header = TRUE)
+
+Silence_scatter <- ggplot(WPM_Silence, aes(x = User, y = WPM)) + geom_point() + labs(x="User", y="Words Per Minute") + ggtitle("User vs Silence WPM Scatterplot")
+Silence_scatter
+
+
+WPM_Classical <- read.csv('WPM_Classical.csv', sep = ',', header = TRUE)
+
+Classical_scatter <- ggplot(WPM_Classical, aes(x = User, y = WPM)) + geom_point() + labs(x="User", y="Words Per Minute") + ggtitle("User vs Classical WPM Scatterplot")
+Classical_scatter
+
+WPM_Pop <- read.csv('WPM_Pop.csv', sep = ',', header = TRUE)
+Pop_scatter <- ggplot(WPM_Pop, aes(x = User, y = WPM)) + geom_point() + labs(x="User", y="Words Per Minute") + ggtitle("User vs Pop WPM Scatterplot")
+Pop_scatter
+
+```
+
+
+
+# 6. Check all assumptions of ANOVA Table (Normally distributed)
+```{r}
+
+# SILENCE
+Silence_hist <- ggplot(WPM, aes(Silence)) + geom_histogram(binwidth = 5, color = "black", fill = "blue") + labs(x = "Silence", y = "Frequency") + ggtitle("Silence Histogram")
+
+Silence_hist
+
+# CLASSICAL
+Classical_hist <- ggplot(WPM, aes(Classical)) + geom_histogram(binwidth = 5, color = "black", fill = "blue") + labs(x = "Classical", y = "Frequency") + ggtitle("Classical Histogram")
+
+Classical_hist
+
+# POP
+Pop_hist <- ggplot(WPM, aes(Pop)) + geom_histogram(binwidth = 5, color = "black", fill = "blue") + labs(x = "Pop", y = "Frequency") + ggtitle("Pop Histogram")
+
+Pop_hist
+```
+
+
+# 7. Sphericity Test
+```{r}
+
+Sphericity <- WPM %>%
+    transmute(
+      'Classical - Silence' = Classical - Silence,
+      'Classical - Pop' = Classical - Pop,
+      'Silence - Pop' = Silence - Pop,
+    )
+Sphericity %>% map(var)
+```
+
+# 8. SHAPRIO WILKS TEST
+```{r}
+
+shapiro.test(WPM$Silence)
+shapiro.test(WPM$Classical)
+shapiro.test(WPM$Pop)
+
+# Since the P-values of the Shapiro test of all three categories are greater than 0.05, we can reject the null hypothesis that "Silence", "Classical", and "Pop" are not normally distribted. Therefore, we can say that our data values are likely normally distributed
+```
+
+
+
+
+# 9. Use QQ Plot
+```{r}
+Silence_lm <- lm(WPM ~ User, data = WPM_Silence)
+Silence_resid <- resid(Silence_lm)
+
+Silence.student <- rstudent(Silence_lm)
+Silence.standard <- rstandard(Silence_lm)
+
+plot(Silence_lm, which = 2, main = "Silence Q-Q Plot of Residuals")
+
+Silence.student
+Silence.standard
+
+```
+
+```{r}
+
+Classical_lm <- lm(WPM ~ User, data = WPM_Classical)
+Classical_resid <- resid(Classical_lm)
+
+Classical.student <- rstudent(Classical_lm)
+Classical.standard <- rstandard(Classical_lm)
+
+plot(Classical_lm, which = 2, main = "Classical Q-Q Plot of Residuals")
+
+Classical.student
+Classical.standard
+
+
+```
+
+```{r}
+
+Pop_lm <- lm(WPM ~ User, data = WPM_Pop)
+Pop_resid <- resid(Pop_lm)
+
+Pop.student <- rstudent(Pop_lm)
+Pop.standard <- rstandard(Pop_lm)
+
+plot(Pop_lm, which = 2, main = "Pop Q-Q Plot of Residuals")
+
+Pop.student
+Pop.standard
+
+
+
+# leverage is how much power each point has to influence the slope
+```
+
+
+
+# 10. Residual Plot
+```{r}
+# Silence Standardized and Studentized Plots
+ols_plot_resid_stand(Silence_lm)
+ols_plot_resid_stud(Silence_lm)
+
+```
+```{r}
+# Classical Standardized and Studentized Plots
+ols_plot_resid_stand(Classical_lm)
+ols_plot_resid_stud(Classical_lm)
+```
+
+```{r}
+# Pop Standardized and Studentized Plots
+ols_plot_resid_stand(Pop_lm)
+ols_plot_resid_stud(Pop_lm)
+```
